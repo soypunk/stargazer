@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeTheme } from 'electron';
+import { app, BrowserWindow, Menu, MenuItem, nativeTheme } from 'electron';
 import path from 'path';
 
 try {
@@ -19,6 +19,7 @@ function createWindow() {
     useContentSize: true,
     webPreferences: {
       contextIsolation: true,
+      spellcheck: true,
       // More info: /quasar-cli/developing-electron-apps/electron-preload-script
       preload: path.resolve(__dirname, process.env.QUASAR_ELECTRON_PRELOAD),
     },
@@ -28,6 +29,30 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.loadURL(process.env.APP_URL);
+
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const menu = new Menu()
+
+    // Add each spelling suggestion
+    for (const suggestion of params.dictionarySuggestions) {
+      menu.append(new MenuItem({
+        label: suggestion,
+        click: () => mainWindow.webContents.replaceMisspelling(suggestion)
+      }))
+    }
+
+    // Allow users to add the misspelled word to the dictionary
+    if (params.misspelledWord) {
+      menu.append(
+        new MenuItem({
+          label: 'Add to dictionary',
+          click: () => mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
+        })
+      )
+    }
+
+    menu.popup()
+  });
 
   if (process.env.DEBUGGING) {
     // if on DEV or Production with debug enabled
